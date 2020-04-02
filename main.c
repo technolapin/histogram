@@ -3,13 +3,16 @@
 
 typedef struct Histogram
 {
-     float min;
-     float max;
-     int size;
-     int lastest;
-     int n_bins;
-     int * entries;
-     int * bins;
+     float min; // min value containable
+     float max; // max value containable
+     int size; // capacity
+     int lastest; // oldest inserted value
+     int n_bins; // number of bins
+     int median_bin; // the bin containing the median
+     int left; // the count of values left of the median
+     int right; // the count of values right of the median
+     int * entries; // the entries
+     int * bins; // the bins
 } Histogram;
 
 
@@ -40,6 +43,7 @@ histo_float_to_intern(Histogram* histo, float entry)
 {
      return (int) ((entry-histo->min)/(histo->max-histo->min) * ((float) histo->n_bins));
 }
+
 float
 histo_intern_to_float(Histogram* histo, int intern)
 {
@@ -49,25 +53,79 @@ histo_intern_to_float(Histogram* histo, int intern)
 Histogram
 histo_new(int size, int n_bins, float min, float max)
 {
-     Histogram histo = {min, max, size, 0, n_bins, malloc(sizeof(int)*size), malloc(sizeof(int)*n_bins)};
+     Histogram histo = {min, max, size, 0, n_bins, 0, 0, 0, malloc(sizeof(int)*size), malloc(sizeof(int)*n_bins)};
+     histo.bins[0] = size;
      return histo;
 }
 
-// returns the index of the bin corresponding to that value
-int
-histo_get_bin(Histogram* histo, int value)
+void
+histo_decrease(Histogram* histo, int bin)
 {
-     return value;
+     histo->bins[bin]--;
+
+     if (bin < histo->median_bin)
+	  histo->left--;
+     if (bin > histo->median_bin)
+	  histo->right--;
+
+     int m = (histo->size + 1)/2;
+     if (histo->left >= m)
+     {
+	  int left_bin = histo_bin_left_of(histo, histo->median_bin);
+	  histo->right += histo->bins[histo->median_bin];
+	  histo->left -= histo->bins[left_bin];
+	  histo->median_bin = left_bin;
+     }
+     else if (histo->left + histo->bins[histo->median_bin] < m)
+     {
+	  int right_bin = histo_bin_right_of(histo, histo->median_bin);
+	  histo->left += histo->bins[histo->median_bin];
+	  histo->right -= histo->bins[right_bin];
+	  histo->median_bin = right_bin;
+	  
+     }
+     
+
 }
 
 void
-histo_push_intern(Histogram* histo, int value)
+histo_increase(Histogram* histo, int bin)
+{
+     histo->bins[bin]++;
+
+     if (bin < histo->median_bin)
+	  histo->left++;
+     if (bin > histo->median_bin)
+	  histo->right++;
+
+
+     int m = (histo->size + 1)/2;
+     if (histo->left >= m)
+     {
+	  int left_bin = histo_bin_left_of(histo, histo->median_bin);
+	  histo->right += histo->bins[histo->median_bin];
+	  histo->left -= histo->bins[left_bin];
+	  histo->median_bin = left_bin;
+     }
+     else if (histo->left + histo->bins[histo->median_bin] < m)
+     {
+	  int right_bin = histo_bin_right_of(histo, histo->median_bin);
+	  histo->left += histo->bins[histo->median_bin];
+	  histo->right -= histo->bins[right_bin];
+	  histo->median_bin = right_bin;
+	  
+     }
+
+}
+
+void
+histo_push_intern(Histogram* histo, int bin)
 {
      int i = histo->lastest;
-     int old_value = histo->entries[i];
-     histo->bins[histo_get_bin(histo, old_value)]--;
-     histo->bins[histo_get_bin(histo, value)]++;
-     histo->entries[i] = value;
+     int old_bin = histo->entries[i];
+     histo_decrease(histo, old_bin);
+     histo_increase(histo, bin);
+     histo->entries[i] = bin;
      histo->lastest = (i+1) % histo->size;
 }
 
@@ -76,16 +134,7 @@ void histo_push(Histogram* histo, float value)
      histo_push_intern(histo, histo_float_to_intern(histo, value));
 }
 
-void
-histo_push_no_remove(Histogram* histo, int value)
-{
-     int i = histo->lastest;
-     histo->entries[i] = value;
-     histo->bins[histo_get_bin(histo, value)]++;
-     histo->lastest = (i+1) % histo->size;
-}
-
-int
+float
 histo_stupid_median(Histogram* histo)
 {
      int sum = 0;
@@ -108,7 +157,8 @@ histo_print(Histogram* histo)
      for (int i = 0; i < histo->n_bins; ++i)
 	  printf("%d ", histo->bins[i]);
      printf("\n");
-     printf("MEDIAN: %d\n", histo_stupid_median(histo));
+     printf("MEDIAN: %lf\n", histo_stupid_median(histo));
+     printf("QUICK MEDIAN: %lf\n", histo_intern_to_float(histo, histo->median_bin));
      printf("\n");
 }
 
@@ -119,11 +169,12 @@ main(void)
 {
 
      int size = 4;
-     Histogram histo = histo_new(size, 10, 0., 10.);
+     Histogram histo = histo_new(size, 20, -10., 10.);
 
+     histo_print(&histo);
      for (int i = 0; i < size; ++i)
-	  histo_push_no_remove(&histo, 0);
-     
+	  histo_push(&histo, 0);
+     for (int i = 0; i < 40; ++i){
      histo_print(&histo);
      histo_push(&histo, 1);
      histo_print(&histo);
@@ -139,15 +190,6 @@ main(void)
      histo_print(&histo);
      histo_push(&histo, 0);
      histo_print(&histo);
-
-
-
-     for (float f = 0.; f < 10.; f+=0.5)
-     {
-	  int i = histo_float_to_intern(&histo, f);
-	  float f2 = histo_intern_to_float(&histo, f);
-	  printf("%lf -> %d -> %lf\n", f, i, f2);
      }
-     
      return 0;
 }
