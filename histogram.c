@@ -42,7 +42,7 @@ histo_intern_to_float(Histogram* histo, int intern)
 Histogram
 histo_new(int size, int n_bins, float min, float max)
 {
-     Histogram histo = {min, max, size, 0, n_bins, 0, 0, 0, malloc(sizeof(int)*size), malloc(sizeof(int)*n_bins)};
+     Histogram histo = {min, max, size, 0, n_bins, 0, 0, 0, calloc(size, sizeof(int)), calloc(n_bins, sizeof(int))};
      histo.bins[0] = size;
      return histo;
 }
