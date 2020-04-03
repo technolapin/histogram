@@ -11,8 +11,6 @@ main(void)
      Histogram histo = histo_new(size, 10, -10., 10.);
 
      histo_print(&histo);
-     for (int i = 0; i < size; ++i)
-	  histo_push(&histo, 0);
      for (int i = 0; i < 40; ++i){
      histo_print(&histo);
      histo_push(&histo, 1);
@@ -30,5 +28,7 @@ main(void)
      histo_push(&histo, 0);
      histo_print(&histo);
      }
+
+     histo_free(&histo);
      return 0;
 }
