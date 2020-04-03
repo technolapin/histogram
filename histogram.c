@@ -156,3 +156,9 @@ histo_print(Histogram* histo)
      printf("\n");
 }
 
+void
+histo_free(Histogram * histo)
+{
+     free(histo->entries);
+     free(histo->bins);
+}

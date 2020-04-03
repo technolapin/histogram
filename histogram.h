@@ -53,3 +53,6 @@ histo_stupid_median(Histogram* histo);
 
 void
 histo_print(Histogram* histo);
+
+void
+histo_free(Histogram * histo);
